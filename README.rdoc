@@ -1,0 +1,276 @@
+= cisco-ise
+
+CiscoISE is a Ruby wrapper for the Cisco Identity Services Engine (ISE) API. This implementation wraps all APIs for ISE 1.1.
+
+== Installation
+
+Install the library using rubygems
+
+    $ gem install cisco-ise
+
+You can then use it in your Ruby scripts with
+
+    require 'cisco-ise'
+
+== HTTP Session
+
+For each MnT that you need to communicate with, you will need to create a CiscoISE::HttpSession:
+
+    ise_session   = CiscoISE::HttpSession.new("device-name","myusername","mypassword")
+
+To disable SSL support for the HTTP session:
+
+    ise_session   = CiscoISE::HttpSession.new("device-name","myusername","mypassword", CiscoISE::HttpSession::SSL_DISABLED)
+
+To enable certificate validation for the HTTP session:
+
+    ise_session   = CiscoISE::HttpSession.new("device-name","myusername","mypassword", CiscoISE::HttpSession::SSL_ENABLED, CiscoISE::HttpSession::CERT_VERIFY_ENABLED)
+
+==  Session Management
+
+The following sections refer to the Session Management APIs. Refer to http://www.cisco.com/en/US/docs/security/ise/1.1/api_ref_guide/ise_api_ref_ch2.html
+
+=== Active Session Counter
+
+To return the current Active Session count:
+
+    count = CiscoISE::ActiveCountApi.new(ise_session).count
+        => "10"
+
+=== Posture Session Counter
+
+To return the current Posture Session count:
+
+    count = CiscoISE::PostureCountApi.new(ise_session).count
+        => "12"
+
+=== Profiler Session Counter
+
+To return the current Profiler Session count:
+
+    count = CiscoISE::ProfilerCountApi.new(ise_session).count
+        => "8"
+
+=== Active Session List
+
+
+Firstly create an Active List query
+
+    active = CiscoISE::ActiveListApi.new(ise_session)
+
+Next we can iterate through each active session. Each returned object is a CiscoISE::ActiveSession.
+
+    active.each do |record|
+        puts record.user_name
+    end
+
+=== Authenticated Session List
+
+
+Firstly create an Authenticated Session List query. The default query lists all currently active authenticated sessions.
+
+    active = CiscoISE::AuthListApi.new(ise_session)
+
+Next we can iterate through each authenticated session. Each returned object is a CiscoISE::ActiveSession.
+
+    active.each do |record|
+        puts record.user_name
+    end
+
+To limit the authenticated session list to authentications starting BEFORE a specific time:
+
+    active = CiscoISE::AuthListApi.new(ise_session, '2010-12-14 15:33:15')
+
+To limit the authenticated session list to authentications starting AFTER a specific time:
+
+    active = CiscoISE::AuthListApi.new(ise_session, '', '2010-12-14 15:33:15')
+
+To limit the authenticated session list to authentications starting BETWEEN a specific time range:
+
+    active = CiscoISE::AuthListApi.new(ise_session, '2010-12-13 15:33:15', '2010-12-14 15:33:15')
+
+=== MAC Address Search
+
+Firstly create a MAC Address query.
+
+    session = CiscoISE::MacAddressApi.new(ise_session,'00:17:89:01:23:45')
+
+Next we can iterate through each session object. Each returned object is a CiscoISE::SessionParameters.
+
+    session.each do |record|
+        puts record.user_name + ":" + record.nas_ip_address
+    end
+
+=== User Name Search
+
+Firstly create a User Name query.
+
+    session = CiscoISE::UserNameApi.new(ise_session,'the-users-name')
+
+Next we can iterate through each session object. Each returned object is a CiscoISE::SessionParameters.
+
+    session.each do |record|
+        puts record.user_name + ":" + record.nas_ip_address
+    end
+
+=== NAS IP Address Search
+
+Firstly create a NAS IP Address query.
+
+    session = CiscoISE::NasIpAddressApi.new(ise_session,'1.1.1.1')
+
+Next we can iterate through each session object. Each returned object is a CiscoISE::SessionParameters.
+
+    session.each do |record|
+        puts record.user_name + ":" + record.nas_ip_address
+    end
+
+=== Endpoint IP Address Search
+
+Firstly create an Endpoint IP Address query.
+
+    session = CiscoISE::EndPointIpAddressApi.new(ise_session,'10.10.10.10')
+
+Next we can iterate through each session object. Each returned object is a CiscoISE::SessionParameters.
+
+    session.each do |record|
+        puts record.user_name + ":" + record.nas_ip_address
+    end
+
+=== Removing stale sessions API call
+
+Please note that this feature is documented as "manually delete inactive sessions". Do not use this on live session. To disconnect/delete a live session please use the CoA api.
+
+Firstly create a new Delete session.
+
+  delete = CiscoISE::DeleteApi.new(ise_session)
+
+There are three different methods that can be used to delete sessions. To delete all sessions:
+
+    delete.all
+
+To delete a session based on a MAC Address:
+
+    delete.mac_address('00:17:89:01:23:45')
+
+To delete a session based on a session ID:
+
+    delete.session_id('1234567890987654321')
+
+==  Troubleshooting API's
+
+The following sections refer to the Troubleshooting APIs. Refer to http://www.cisco.com/en/US/docs/security/ise/1.1/api_ref_guide/ise_api_ref_ch3.html
+
+=== Node Version and Type (aka Version) API Call
+
+To return a product object that contains details on the MnT:
+
+    product = CiscoISE::VersionApi.new(ise_session).product
+
+    puts product.name
+    puts product.type_of_node
+    puts product.version
+    puts product.type_of_node_as_code
+
+=== Failure Reasons API Call
+
+To return a list of Failure Reasons:
+
+    failure       = CiscoISE::FailureReasonsApi.new(ise_session)
+
+To retrieve a specific code:
+
+    code = failure.find_code('86023')
+    puts code.failure_id + ':' + code.cause
+
+To iterate through each failure code:
+
+    failure.each do |code|
+        puts code.id + code.cause
+    end
+
+=== Authentication Status API Call
+
+To return a list of CiscoISE::AuthStatusElements for a given MAC Address. By default this query returns records that occurred
+in the last 10 days (864000 seconds) and limits the records to 200.
+
+    auth = CiscoISE::AuthStatusApi.new(ise_session, '00:17:89:01:23:45')
+
+To limit the results to events in the last hour (60 seconds x 60 minutes = 3600 seconds) and limit the records to 100:
+
+    auth = CiscoISE::AuthStatusApi.new(ise_session, '00:17:89:01:23:45',3600,100)
+
+To iterate through each element:
+
+    auth.each do |element|
+        puts "doing something with " + element.username
+    end
+
+=== Account Status API Call
+
+To return a list of CiscoISE::AcctStatusElements for a given MAC Address
+
+    acct = CiscoISE::AcctStatusApi.new(ise_session, '00:17:89:01:23:45', 20000)
+
+To limit search results to sessions that occurred within the last 60 minutes (60 seconds * 60 minutes = 3600 seconds):
+
+    acct = CiscoISE::AcctStatusApi.new(ise_session, '00:17:89:01:23:45', 3600)
+
+To iterate through each element:
+    acct.each do |element|
+        puts element.calling_station_id + ':' + element.paks_in
+    end
+
+==  Change of Authorization (CoA) API's
+
+The following sections refer to the CoA APIs. Refer to http://www.cisco.com/en/US/docs/security/ise/1.1/api_ref_guide/ise_api_ref_ch4.html
+
+=== Session Reauthentication (aka Reauth) API Call
+
+Before forcing a reauth, you need to locate an ActiveSession. Once you have the ActiveSession, you can then pass this object to the reauth API.
+
+    auth        = CiscoISE::AuthListApi.new(ise_session)
+
+    active.each do |record|
+        if record.user_name == 'someuser'
+         success = CiscoISE::ReauthApi.new(ise_session).rerun(record).success?
+    end
+
+There are three different reauth methods. Each can be accessed in the following way:
+
+    CiscoISE::ReauthApi.new(ise_session).default(record)
+    CiscoISE::ReauthApi.new(ise_session).last(record)
+    CiscoISE::ReauthApi.new(ise_session).rerun(record)
+
+=== Session Discconnect API Call
+
+Before issuing a discconnect, you need to locate an ActiveSession. Once you have the ActiveSession, you can then pass this object to the diconnect API.
+
+    auth        = CiscoISE::AuthListApi.new(ise_session)
+
+    active.each do |record|
+        if record.user_name == 'someuser'
+         success = CiscoISE::DisconnectApi.new(ise_session).bounce(record).success?
+    end
+
+There are three different disconnect methods. Each can be accessed in the following way:
+
+    CiscoISE::ReauthApi.new(ise_session).default(record)
+    CiscoISE::ReauthApi.new(ise_session).bounce(record)
+    CiscoISE::ReauthApi.new(ise_session).shutdown(record)
+
+== Contributing to cisco-ise
+ 
+* Check out the latest master to make sure the feature hasn't been implemented or the bug hasn't been fixed yet.
+* Check out the issue tracker to make sure someone already hasn't requested it and/or contributed it.
+* Fork the project.
+* Start a feature/bugfix branch.
+* Commit and push until you are happy with your contribution.
+* Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
+* Please try not to mess with the Rakefile, version, or history. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.
+
+== Copyright
+
+Copyright (c) 2012 Mark Sullivan. See LICENSE.txt for
+further details.
+
